@@ -4,6 +4,7 @@ import math
 from bs4 import BeautifulSoup
 import googlemaps
 import time
+import csv
 
 fuel_type_names = ["Natural 95", "Natural 95+", "Natural 98", "Diesel", "Diesel+"]
 
@@ -41,9 +42,11 @@ def change_config(file_name, prompt_message, is_fuel_type=False):
 def get_distance_km(start, end):
    try:
       gmap = map_client.directions(start, end, mode="driving", avoid="tolls", departure_time="now", language="cs", units="metric")
-      distance = gmap[0]['legs'][0]['distance']['value']
-      distance_in_km = float(distance) / 1000
-      return distance_in_km
+      metres = gmap[0]['legs'][0]['distance']['value']
+      distance = gmap[0]['legs'][0]['distance']['text']
+      duration = gmap[0]['legs'][0]['duration']['text']
+      seconds = gmap[0]['legs'][0]['duration']['value']
+      return metres, distance, seconds, duration
    except ValueError:
       print("Nastala chyba! Pravděpodobně špatné město.")
       return 0
@@ -60,14 +63,21 @@ def calculate_distance():
       print("")
       start_destination = input("Napiš z jakého města jedeš: ")
       end_destination = input("Napiš do jakého města jedeš: ")
-      km = get_distance_km(start_destination, end_destination)
+      metres, distance, seconds, duration = get_distance_km(start_destination, end_destination)
+      km = float(metres) / 1000
       fuel_price = ((km / 100) * consumption) * price
       os.system('cls' if os.name == 'nt' else 'clear')
       print("")
-      print("Cena benzínu: ", price, " Kč")
-      print("Vzdálenost: ", km, "km")
+      print("Trvání: ", duration)
+      print("Vzdálenost: ", distance)
       print("Cena: ", (math.ceil(fuel_price / 10) * 10), "Kč")
       print("")
+
+      with open('cesty.csv', mode='a', newline='') as file:
+         writer = csv.writer(file)
+         if os.stat('cesty.csv').st_size == 0:
+            writer.writerow(["Datum", "Start", "Cil", "Vzdalenost", "Trvani", "Cena"])
+         writer.writerow([time.strftime("%Y-%m-%d"), start_destination, end_destination, metres, seconds, (math.ceil(fuel_price / 10) * 10)])
    else:
       print("Chyba při načítání stránky. Zkus to později, nebo to oprav.")
 
